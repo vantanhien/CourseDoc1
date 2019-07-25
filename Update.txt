@@ -1,0 +1,103 @@
+#!/bin/bash
+# This is the help message subroutine called usage.
+usage()
+{
+ echo "THIS SCRIPT MUST BE RUN AS THE root USER!!!"
+ echo " "
+ echo "usage: $0 [-l logfile] [-r] [-a] [[-u] | [-d]]] | [-h] "
+ echo " "
+ echo "-l or –logfile name of file to put output messages "
+ echo "logfile name of logfile MUST BE SPECIFIED with -l "
+ echo "-r or --reboot reboot when complete "
+ echo "-a or --autoremove run the autoremove process"
+ echo "-u or --upgrade run the kernel upgrade "
+ echo "-d or --dist-upgrade run the distribution and kernel upgrade"
+ echo " "
+ echo " NOTE: -d and -u are mutually exclusive."
+ echo " if you specify help, no other commands will run"
+}
+# Check to make sure that root is running this script
+if [ "$(id -u)" != "0" ]; then
+ echo "This script must be run as root" 1>&2
+ usage
+ exit 1
+fi
+upgrade=0
+reboot=0
+autoermove=0
+logfile="/dev/null"
+echo "We will be running the following parameters:"
+while [ "$1" != "" ]; do
+ case $1 in
+ -d | --dist-upgrade )
+ if [ "$upgrade" == 0 ]
+ then
+ upgrade=1
+ echo "Distribution Upgrade"
+ else
+ echo "Upgrade already selected -d is invalid"
+ usage
+ exit 1
+ fi
+ ;;
+ -u | --upgrade ) if [ "$upgrade" == 0 ]
+ then
+ upgrade=2
+ echo "Upgrade"
+ else
+ echo "Dist-upgrade already selected -u is
+invalid"
+ usage
+ exit 1
+ fi
+ ;;
+ -r | --reboot ) reboot=1
+ echo "Reboot after complete"
+ ;;
+ -a | --autoremove )
+ autoremove=1
+ echo "Autoremove and Update grub"
+ ;;
+ -l | --logfile ) logfile=$2
+ shift
+ ;;
+ -? | -h | --help )
+ echo "Showing Help Only"
+ usage
+ exit
+ ;;
+ * ) echo "Invalid Parameter... Showing Help Only"
+ usage
+ exit 1
+ esac
+ shift
+done
+echo " --- *** Starting apt-get update *** --- "
+apt-get update > $logfile
+if [ "$upgrade" == 1 ]
+then
+ echo "--- *** Starting the apt-get dist-upgrade -y --- ***"
+ apt-get dist-upgrade -y >> $logfile
+elif [ "$upgrade" == 2 ]
+then
+ echo "--- *** Starting the apt-get upgrade -y --- ***"
+ apt-get upgrade -y >> $logfile
+else
+ echo "--- *** No Upgrades selected --- ***"
+fi
+if [ "$autoremove" == 1 ]
+then
+ echo "--- *** Starting the apt-get autoremove -y and update-grub2 --- ***"
+ apt-get autoremove -y >> $logfile
+ update-grub2 >> $logfile 2>> $logfile
+else
+ echo "--- *** Autoremove Not Selected --- ***"
+fi
+
+if [ "$reboot" == 1 ]
+then
+ echo "--- *** Rebooting now --- ***"
+ reboot
+else
+ echo "--- *** Reboot not selected --- *** "
+fi  
